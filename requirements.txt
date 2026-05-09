@@ -1,0 +1,16 @@
+numpy<2.0.0
+tqdm
+nltk
+
+datasets
+bert-score
+
+rank_bm25
+FlagEmbedding
+sentence-transformers
+
+torch
+transformers
+accelerate
+bitsandbytes
+setfit

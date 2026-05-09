@@ -15,7 +15,7 @@ from bert_score import score as bert_score
 import importlib
 import collections
 
-pipeline_module = importlib.import_module("07_pipeline")
-retriever_module = importlib.import_module("03_retriever")
+pipeline_module = importlib.import_module("pipeline")
+retriever_module = importlib.import_module("retriever")
 
 EVAL_FILE = "./rag_project/data/sqac_validation.jsonl"
