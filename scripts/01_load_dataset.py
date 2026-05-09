@@ -5,7 +5,7 @@ from tqdm.auto import tqdm
 base_dir = "./rag_project"
 out_data_dir = f"{base_dir}/data"
 index_dir = f"{base_dir}/indexes"
-input_data_dir = "./data"
+input_data_dir = "./corpus"
 
 for d in [out_data_dir, index_dir]:
     os.makedirs(d, exist_ok=True)
