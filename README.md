@@ -17,6 +17,9 @@
 08_evaluate.py → métricas: token F1, BERTScore, Recall@k, MRR, oracle. comparación: never / always / router RAG
 
 
+
+An end-to-end Retrieval-Augmented Generation (RAG) system designed for Question Answering in Spanish, evaluated on the SQAC (Spanish Question Answering Corpus) dataset.
+
 ## Project Structure
 
 The pipeline is divided into modular scripts:
