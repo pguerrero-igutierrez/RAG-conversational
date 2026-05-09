@@ -1,7 +1,6 @@
 """
-Implements a hybrid retriever combining BM25 lexical scores and bge-m3 dense
-cosine similarity, followed by cross-encoder reranking. Exposes a single
-retrieve() function to be imported by downstream pipeline modules.
+Hybrid retriever combining BM25 lexical scores and bge-m3 dense
+cosine similarity, followed by cross-encoder reranking.
 """
 
 import json
