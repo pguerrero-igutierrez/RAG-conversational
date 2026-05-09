@@ -1,7 +1,6 @@
 """
-Builds the hybrid retrieval index from the passage corpus: tokenizes passages
-for BM25 and encodes them with bge-m3 to produce normalized dense embeddings,
-both saved to disk for use at retrieval time.
+Builds the hybrid retrieval index from the corpus: tokenizes passages
+for BM25 and encodes them with bge-m3 to produce normalized dense embeddings.
 """
 
 import json
