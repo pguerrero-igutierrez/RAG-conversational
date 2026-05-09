@@ -1,5 +1,5 @@
 """
-Downloads the SQAC dataset from Hugging Face and builds a deduplicated passage
+Downloads the SQAC dataset from Hugging Face and builds a deduplicated
 corpus and an evaluation split, both serialized as JSONL files.
 """
 
