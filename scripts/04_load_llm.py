@@ -1,6 +1,6 @@
 """
 Loads the Mixtral-8x7B-Instruct model with 4-bit quantization via bitsandbytes,
-exposes an llm_chat() helper used by the router, generator and feedback modules.
+creates an llm_chat() helper used by the router, generator and feedback modules.
 """
 
 import os
