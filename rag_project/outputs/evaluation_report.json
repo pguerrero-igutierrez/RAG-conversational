@@ -1,0 +1,32 @@
+[
+  {
+    "strategy": "always_rag",
+    "n_samples": 50,
+    "token_f1": 0.06116319972023155,
+    "bertscore_f1": 0.6029382824897767,
+    "recall_at_3": 0.65625,
+    "mrr": 0.59375,
+    "retrieval_rate": 1.0,
+    "oracle_accuracy": null
+  },
+  {
+    "strategy": "never_rag",
+    "n_samples": 50,
+    "token_f1": 0.027772690095209968,
+    "bertscore_f1": 0.5751428472995758,
+    "recall_at_3": null,
+    "mrr": null,
+    "retrieval_rate": 0.0,
+    "oracle_accuracy": null
+  },
+  {
+    "strategy": "router_rag",
+    "n_samples": 50,
+    "token_f1": 0.06226209859013228,
+    "bertscore_f1": 0.5999920654296875,
+    "recall_at_3": 0.6896551724137931,
+    "mrr": 0.6206896551724138,
+    "retrieval_rate": 0.98,
+    "oracle_accuracy": 0.66
+  }
+]

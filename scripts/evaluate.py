@@ -44,8 +44,8 @@ from pathlib import Path
 import numpy as np
 
 # ── Paths ──────────────────────────────────────────────────────────────────
-DATA_DIR   = "./data/processed"
-OUTPUT_DIR = "./outputs"
+DATA_DIR   = "rag_project/data"
+OUTPUT_DIR = "rag_project/outputs"
 EVAL_PATH  = f"{DATA_DIR}/sqac_validation.jsonl"
 PRED_TPL   = f"{OUTPUT_DIR}/predictions_{{strategy}}.jsonl"
 Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
