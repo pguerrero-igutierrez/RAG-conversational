@@ -42,7 +42,6 @@ import json
 import os
 import time
 from pathlib import Path
-from config import HF_TOKEN
 
 # ── Project paths ──────────────────────────────────────────────────────────
 BASE_DIR      = "./rag_project"

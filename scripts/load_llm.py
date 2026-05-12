@@ -4,7 +4,6 @@ creates an llm_chat() helper used by the router, generator and feedback modules.
 """
 
 import os
-from config import HF_TOKEN
 import torch
 from transformers import (
     AutoTokenizer,

@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import re
 from typing import Optional
-from config import HF_TOKEN
 
 # ── Prompt templates ───────────────────────────────────────────────────────
 _SYSTEM_RAG = (

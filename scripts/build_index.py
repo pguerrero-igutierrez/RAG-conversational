@@ -14,7 +14,6 @@ from nltk.stem import SnowballStemmer
 from tqdm.auto import tqdm
 from FlagEmbedding import BGEM3FlagModel
 from rank_bm25 import BM25Okapi
-from config import HF_TOKEN
 
 
 nltk.download('stopwords', quiet=True)

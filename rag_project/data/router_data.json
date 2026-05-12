@@ -1,0 +1,166 @@
+{
+    "train": [
+        {
+            "text": "¿Cuándo se fundó la Universidad de Salamanca?",
+            "label": 1
+        },
+        {
+            "text": "¿Quién escribió el Quijote?",
+            "label": 1
+        },
+        {
+            "text": "¿En qué año comenzó la Guerra Civil Española?",
+            "label": 1
+        },
+        {
+            "text": "¿Cuál es la capital de Australia?",
+            "label": 1
+        },
+        {
+            "text": "¿Qué es el síndrome de Marfan?",
+            "label": 1
+        },
+        {
+            "text": "¿Cuántos habitantes tiene Ciudad de México?",
+            "label": 1
+        },
+        {
+            "text": "¿Quién ganó el Premio Nobel de Literatura en 2023?",
+            "label": 1
+        },
+        {
+            "text": "¿Cuándo murió Frida Kahlo?",
+            "label": 1
+        },
+        {
+            "text": "¿Qué países forman la Unión Europea?",
+            "label": 1
+        },
+        {
+            "text": "¿Cuál es la montaña más alta del mundo?",
+            "label": 1
+        },
+        {
+            "text": "¿Qué es la fotosíntesis?",
+            "label": 1
+        },
+        {
+            "text": "¿Cuándo se promulgó la Constitución Española de 1978?",
+            "label": 1
+        },
+        {
+            "text": "¿Quién fue el primer presidente de Argentina?",
+            "label": 1
+        },
+        {
+            "text": "¿Cuál es la velocidad de la luz?",
+            "label": 1
+        },
+        {
+            "text": "¿Qué idiomas se hablan en Suiza?",
+            "label": 1
+        },
+        {
+            "text": "Hola, ¿cómo estás?",
+            "label": 0
+        },
+        {
+            "text": "¿Puedes ayudarme?",
+            "label": 0
+        },
+        {
+            "text": "¿Cuánto es 15 más 27?",
+            "label": 0
+        },
+        {
+            "text": "Buenas tardes.",
+            "label": 0
+        },
+        {
+            "text": "¿Qué hora es?",
+            "label": 0
+        },
+        {
+            "text": "Gracias por tu ayuda.",
+            "label": 0
+        },
+        {
+            "text": "¿Me puedes contar un chiste?",
+            "label": 0
+        },
+        {
+            "text": "Necesito escribir un correo formal.",
+            "label": 0
+        },
+        {
+            "text": "¿Puedes traducir 'hello' al español?",
+            "label": 0
+        },
+        {
+            "text": "Escribe un poema corto sobre el otoño.",
+            "label": 0
+        },
+        {
+            "text": "¿Cuál es la raíz cuadrada de 144?",
+            "label": 0
+        },
+        {
+            "text": "Hasta luego.",
+            "label": 0
+        },
+        {
+            "text": "¿Cómo se dice 'thank you' en francés?",
+            "label": 0
+        },
+        {
+            "text": "Resume este texto en dos frases.",
+            "label": 0
+        },
+        {
+            "text": "¿Qué significa la palabra 'efímero'?",
+            "label": 1
+        }
+    ],
+    "test": [
+        {
+            "text": "¿A qué temperatura hierve el agua?",
+            "label": 1
+        },
+        {
+            "text": "¿Quién pintó la Mona Lisa?",
+            "label": 1
+        },
+        {
+            "text": "¿Cuáles son los síntomas del dengue?",
+            "label": 1
+        },
+        {
+            "text": "Dime la capital de Francia.",
+            "label": 1
+        },
+        {
+            "text": "¿Cuántos huesos tiene el cuerpo humano adulto?",
+            "label": 1
+        },
+        {
+            "text": "Hola, ¿qué tal tu día?",
+            "label": 0
+        },
+        {
+            "text": "Dime un refrán divertido.",
+            "label": 0
+        },
+        {
+            "text": "¿Me ayudas a escribir una carta de renuncia?",
+            "label": 0
+        },
+        {
+            "text": "¿Cuánto es 8 por 8?",
+            "label": 0
+        },
+        {
+            "text": "Traduce 'good morning' al español?",
+            "label": 0
+        }
+    ]
+}
