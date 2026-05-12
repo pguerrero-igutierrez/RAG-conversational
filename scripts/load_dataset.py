@@ -1,6 +1,7 @@
 import json
 import os
 from tqdm.auto import tqdm
+from config import HF_TOKEN
 
 base_dir = "./rag_project"
 out_data_dir = f"{base_dir}/data"

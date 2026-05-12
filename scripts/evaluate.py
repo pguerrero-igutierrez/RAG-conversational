@@ -42,6 +42,7 @@ import string
 from pathlib import Path
 
 import numpy as np
+from config import HF_TOKEN
 
 # ── Paths ──────────────────────────────────────────────────────────────────
 DATA_DIR   = "./data/processed"

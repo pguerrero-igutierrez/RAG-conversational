@@ -8,6 +8,7 @@ import pickle
 import numpy as np
 from FlagEmbedding import BGEM3FlagModel
 from sentence_transformers import CrossEncoder
+from config import HF_TOKEN
 
 base_dir = "./rag_project"
 index_dir = f"{base_dir}/indexes"

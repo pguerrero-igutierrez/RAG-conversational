@@ -28,6 +28,7 @@ import time
 from pathlib import Path
 from typing import List, Tuple
 from setfit import TrainingArguments
+from config import HF_TOKEN
 
 # ── Paths ──────────────────────────────────────────────────────────────────
 BASE_DIR = "./rag_project"

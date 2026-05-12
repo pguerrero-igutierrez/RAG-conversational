@@ -2,3 +2,4 @@ logs/
 rag_project/indexes/bge_embeddings.npy
 rag_project/router_model/
 rag_project/router_model_v1/
+config.py

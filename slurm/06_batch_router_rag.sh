@@ -14,7 +14,7 @@
 
 source /home/igutierrez134/envs/apps2_3.11/bin/activate
 
-export HF_TOKEN="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"
+export HF_TOKEN=HF_TOKEN
 export HF_HOME="/home/igutierrez134/.cache/huggingface"
 export TRANSFORMERS_CACHE="/home/igutierrez134/.cache/huggingface"
 export HF_HUB_CACHE="/home/igutierrez134/.cache/huggingface"
