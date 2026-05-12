@@ -60,8 +60,7 @@ output = bge_model.encode(
     max_length=512,
     return_dense=True,
     return_sparse=False,
-    return_colbert_vecs=False,
-    show_progress_bar=True,
+    return_colbert_vecs=False
 )
 embeddings = output["dense_vecs"].astype("float32")
 norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
