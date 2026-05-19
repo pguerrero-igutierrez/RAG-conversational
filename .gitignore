@@ -18,3 +18,4 @@ past/
 
 # LaTeX build artifacts
 poster/plots/
+poster/template.tex

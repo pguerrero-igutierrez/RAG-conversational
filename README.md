@@ -1,48 +1,170 @@
-# RAG-conversational
+# RAG Conversational
 
-01_load_dataset.py → descarga SQAC y construye el corpus + split de evaluación
+Spanish Retrieval-Augmented Generation (RAG) experiments for deciding when a conversational assistant should retrieve external context and when it should answer directly.
 
-02_build_index.py → genera embeddings y construye el index FAISS
+The project compares three retrieval policies:
 
-03_retriever.py → recuperación con FAISS + reranking
+- `always_rag`: always retrieve from the SQAC corpus before generation.
+- `never_rag`: answer directly with the LLM.
+- `router_rag`: use a learned query router to decide whether retrieval is needed.
 
-04_load_llm.py
+The pipeline combines SQAC question answering data, conversational/chitchat data, hybrid retrieval, Mixtral generation, self-feedback, and several learned router variants.
 
-05_router.py → router RAG basado en LLM
+## Repository Layout
 
-06_generator.py → generador LLM + self-feedback
+```text
+.
+├── corpus/                    # Tracked source/evaluation corpora
+│   ├── train.json
+│   ├── dev.json
+│   ├── test.json
+│   ├── oracle_train_sqac_64_per_label.jsonl
+│   └── oracle_train_sqac_500_per_label.jsonl
+├── outputs/                   # Tracked final reports and prediction files
+├── scripts/                   # Data prep, indexing, routing, generation, eval
+├── slurm/                     # Cluster job scripts for the full workflow
+├── requirements.txt
+└── README.md
+```
 
-07_pipeline.py → ejecución completa del RAG con el router 
+Ignored local artifacts include `data/`, `models/`, `logs/`, `hf_cache/`, `past/`, Python caches, local `config.py`, and poster build/source files such as `poster/template.tex`.
 
-08_evaluate.py → métricas: token F1, BERTScore, Recall@k, MRR, oracle. comparación: never / always / router RAG
+## Main Components
 
+- `scripts/load_sqac.py`: prepares SQAC retrieval corpus, router splits, and test split.
+- `scripts/load_chatsubs.py` and `scripts/load_microsoft_chitchat.py`: prepare non-retrieval conversational examples.
+- `scripts/build_index.py`: builds BM25 and BGE-M3 dense retrieval indexes.
+- `scripts/retriever.py`: runs hybrid retrieval and reranking.
+- `scripts/router.py`: trains/evaluates router approaches: `frozen_lr`, `setfit`, and `finetune`.
+- `scripts/train_oracle_setfit.py`: trains SetFit routers on oracle-labeled corpora in `corpus/`.
+- `scripts/generator.py`: handles prompt construction, generation, and self-feedback.
+- `scripts/main.py`: runs interactive, single-query, or batch prediction modes.
+- `scripts/evaluate.py`: computes retrieval decision, response quality, retrieval quality, oracle policy, feedback, and latency metrics.
 
-01_load_sqac.sh  ──┐
-                       ├──► 03_build_index.sh
-02_load_chitchat.sh ──┘         │
-                                 ▼
-                       04_train_router.sh
-                                 │
-                    ┌────────────┼────────────┐
-                    ▼            ▼            ▼
-             05_always_rag  06_never_rag  07_router_rag
-                    └────────────┼────────────┘
-                                 ▼
-                          08_evaluate.sh
+## Setup
 
+Create an environment and install dependencies:
 
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-An end-to-end Retrieval-Augmented Generation (RAG) system designed for Question Answering in Spanish, evaluated on the SQAC (Spanish Question Answering Corpus) dataset.
+The generator uses `mistralai/Mixtral-8x7B-Instruct-v0.1`. If your Hugging Face account requires authentication, set:
 
-## Project Structure
+```bash
+export HF_TOKEN=your_token_here
+```
 
-The pipeline is divided into modular scripts:
+Alternatively, the code can read `HF_TOKEN` from a local `config.py`; this file is intentionally ignored.
 
-* `load_dataset.py`: Parses and deduplicates raw SQAC JSON files into a flattened `.jsonl` corpus and evaluation set.
-* `build_index.py`: Builds the BM25 index (with stopword removal and stemming) and generates normalized dense embeddings.
-* `retriever.py`: Executes the hybrid retrieval + reranking pipeline.
-* `load_llm.py`: Configures and loads the 4-bit quantized Mixtral model.
-* `router.py`: Trains and executes the few-shot SetFit model for intent classification.
-* `generator.py`: Handles prompt construction, generation, and the self-feedback verification loop.
-* `main.py`: The main orchestrator connecting routing, retrieval, and generation.
-* `evaluate.py`: Calculates quantitative metrics (MRR, Recall@k, Token F1, and BERTScore) comparing Always-RAG, Never-RAG, and Router-RAG strategies.
+## Data and Generated Artifacts
+
+Tracked:
+
+- Raw SQAC JSON files in `corpus/`
+- Oracle-labeled training corpora in `corpus/`
+- Final prediction files and `outputs/evaluation_report.json`
+
+Ignored and regenerated locally:
+
+- `data/processed/`
+- `data/indexes/`
+- `models/`
+- `logs/`
+- Hugging Face/model caches
+
+Build the processed data and retrieval index:
+
+```bash
+python scripts/load_sqac.py
+python scripts/load_chatsubs.py
+python scripts/build_index.py
+```
+
+## Running the System
+
+Single query:
+
+```bash
+python scripts/main.py \
+  --mode single \
+  --strategy router_rag \
+  --router_approach setfit \
+  --router_size 15036 \
+  --query "¿Quién escribió Don Quijote?"
+```
+
+Interactive mode:
+
+```bash
+python scripts/main.py --mode interactive --strategy router_rag
+```
+
+Batch predictions:
+
+```bash
+python scripts/main.py --mode batch --strategy always_rag
+python scripts/main.py --mode batch --strategy never_rag
+python scripts/main.py --mode batch --strategy router_rag --router_approach setfit --router_size 15036
+```
+
+Evaluate tracked or newly generated predictions:
+
+```bash
+python scripts/evaluate.py
+python scripts/evaluate.py --verbose
+```
+
+## Slurm Workflow
+
+The `slurm/` directory contains the cluster workflow used for the experiments:
+
+```text
+01_load_sqac.sh
+02_load_chatsubs.sh
+03_build_index.sh
+04_train_router.sh
+05_batch_always_rag.sh
+06_batch_never_rag.sh
+07_batch_router_rag.sh
+08_evaluate.sh
+09_build_oracle_train_subset.sh
+10_train_oracle_setfit.sh
+11_batch_oracle_setfit.sh
+12_build_oracle_train_500.sh
+13_train_oracle_setfit_500.sh
+14_batch_oracle_setfit_500.sh
+```
+
+Submit jobs with `sbatch`, for example:
+
+```bash
+sbatch slurm/03_build_index.sh
+sbatch slurm/04_train_router.sh
+sbatch slurm/07_batch_router_rag.sh
+sbatch slurm/08_evaluate.sh
+```
+
+The Slurm scripts assume the project lives at `/home/igutierrez134/apps2` and use the environment at `/home/igutierrez134/envs/apps2_3.11`.
+
+## Results Snapshot
+
+The tracked report in `outputs/evaluation_report.json` evaluates 170 total samples: 85 SQAC questions and 85 conversational prompts.
+
+| Strategy | Token F1 | BERTScore F1 | Retrieval decision accuracy | Retrieval rate | Mean latency |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `always_rag` | 7.88 | 61.10 | 50.00 | 100.00 | 13.94s |
+| `never_rag` | 4.57 | 58.21 | 50.00 | 0.00 | 6.64s |
+| `router_rag_frozen_lr_15036` | 7.39 | 60.81 | 97.06 | 48.24 | 10.33s |
+| `router_rag_setfit_15036` | 8.12 | 61.22 | 98.82 | 48.82 | 10.05s |
+| `router_rag_finetune_12500` | 7.64 | 61.09 | 99.41 | 50.59 | 9.98s |
+| `router_rag_oracle_setfit_500` | 6.98 | 59.78 | 52.94 | 47.65 | 9.82s |
+| `router_rag_oracle_setfit_64` | 6.03 | 59.68 | 52.94 | 44.12 | 10.10s |
+
+## Notes
+
+- `outputs/` is tracked in this repository because the prediction files are small and useful for reproducing the reported evaluation.
+- `corpus/oracle_train_sqac_*.jsonl` contains derived oracle-labeled SQAC training examples and is tracked as project data.
+- Poster files are not part of the GitHub-facing project state; `poster/template.tex` is ignored intentionally.
