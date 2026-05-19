@@ -28,6 +28,7 @@ is needed — the same Mixtral instruction-tuned model acts as its own judge.
 from __future__ import annotations
 
 import re
+import time
 from typing import Optional
 
 # ── Prompt templates ───────────────────────────────────────────────────────
@@ -54,6 +55,13 @@ _SYSTEM_REGENERATE = (
     "Tu respuesta anterior no estaba suficientemente respaldada por el contexto. "
     "Genera una nueva respuesta basándote ÚNICAMENTE en los fragmentos proporcionados. "
     "Si la información no está en los fragmentos, di: 'No lo sé con certeza.'"
+)
+
+_SYSTEM_QUERY_REWRITE = (
+    "Eres un asistente experto en recuperación de información. Reescribe la "
+    "pregunta en español como una consulta breve y específica para buscar el "
+    "documento correcto en una colección de textos. Responde solo con la "
+    "consulta reescrita, sin explicación."
 )
 
 
@@ -161,12 +169,34 @@ def critique_answer(
     return result
 
 
+def rewrite_query_for_retrieval(
+    query: str,
+    llm_chat_fn,  # callable: (system, user, **kwargs) -> str
+) -> str:
+    """Rewrite a question once when the first retrieved context is irrelevant."""
+    user = (
+        "Pregunta original:\n"
+        f"{query}\n\n"
+        "Consulta reescrita:"
+    )
+    rewritten = llm_chat_fn(
+        system=_SYSTEM_QUERY_REWRITE,
+        user=user,
+        temperature=0.0,
+        max_new_tokens=64,
+    )
+    return rewritten.strip().strip('"')
+
+
 # ── Main generation entry point ────────────────────────────────────────────
 def generate_answer(
     query: str,
     passages: Optional[list[dict]],
     llm_chat_fn,                   # callable from load_llm.py
+    retrieve_fn=None,              # optional callable: (query, top_k) -> passages
     use_self_feedback: bool = True,
+    allow_reretrieve: bool = False,
+    top_k: int = 3,
     temperature: float = 0.1,
     max_new_tokens: int = 512,
 ) -> dict:
@@ -178,8 +208,12 @@ def generate_answer(
     query            : The user's natural language question.
     passages         : List of retrieved passage dicts (may be None or []).
     llm_chat_fn      : The llm_chat() callable from load_llm.py.
+    retrieve_fn      : Optional retriever used for one self-feedback retry.
     use_self_feedback: If True, run the critique + conditional regeneration
                        loop when passages are provided.
+    allow_reretrieve : If True, try one query rewrite + retrieval when the
+                       first context is judged irrelevant.
+    top_k            : Number of passages for a re-retrieval attempt.
     temperature      : Sampling temperature for generation.
     max_new_tokens   : Maximum tokens to generate.
 
@@ -187,6 +221,10 @@ def generate_answer(
     -------
     dict with keys:
         answer          (str)  : final answer string
+        initial_answer  (str)  : first answer before self-feedback changes
+        feedback_action (str)  : pass | regenerate | direct_fallback | skipped
+        rewritten_query (str)  : rewritten query used for re-retrieval, if any
+        reretrieved     (bool) : whether a second retrieval was attempted
         retrieved       (bool) : whether passages were used
         critique        (dict) : critique result (only when retrieved + feedback)
         regenerated     (bool) : whether a second generation was triggered
@@ -194,8 +232,14 @@ def generate_answer(
     """
     result: dict = {
         "answer":        "",
+        "initial_answer": "",
+        "feedback_action": "skipped",
+        "rewritten_query": "",
+        "reretrieved":   False,
+        "reretrieval_latency_s": 0.0,
         "retrieved":     False,
         "critique":      {},
+        "reretrieve_critique": {},
         "regenerated":   False,
         "passages_used": [],
     }
@@ -203,12 +247,14 @@ def generate_answer(
     # ── Path A: no retrieval ───────────────────────────────────────────────
     if not passages:
         system, user = build_direct_prompt(query)
-        result["answer"]    = llm_chat_fn(
+        answer = llm_chat_fn(
             system=system,
             user=user,
             temperature=temperature,
             max_new_tokens=max_new_tokens,
         )
+        result["answer"] = answer
+        result["initial_answer"] = answer
         result["retrieved"] = False
         return result
 
@@ -223,11 +269,13 @@ def generate_answer(
         temperature=temperature,
         max_new_tokens=max_new_tokens,
     )
+    result["initial_answer"] = answer
 
     # ── Self-feedback critique ─────────────────────────────────────────────
     if use_self_feedback:
         critique = critique_answer(query, passages, answer, llm_chat_fn)
         result["critique"] = critique
+        result["feedback_action"] = "pass"
 
         # Regenerate if context is relevant but answer is not well supported
         if critique["isrel"] and not critique["issup"]:
@@ -241,20 +289,87 @@ def generate_answer(
                 max_new_tokens=max_new_tokens,
             )
             result["regenerated"] = True
+            result["feedback_action"] = "regenerate"
 
         elif not critique["isrel"]:
-            # Context is off-topic — fall back to direct generation
-            print("[Generator] Self-feedback: context not relevant. "
-                  "Falling back to direct generation …")
-            system3, user3 = build_direct_prompt(query)
-            answer = llm_chat_fn(
-                system=system3,
-                user=user3,
-                temperature=temperature,
-                max_new_tokens=max_new_tokens,
-            )
-            result["retrieved"]     = False   # effective mode is direct
-            result["passages_used"] = []
+            if allow_reretrieve and retrieve_fn is not None:
+                print("[Generator] Self-feedback: context not relevant. "
+                      "Trying one rewritten-query retrieval …")
+                rewritten_query = rewrite_query_for_retrieval(query, llm_chat_fn)
+                result["rewritten_query"] = rewritten_query
+                result["reretrieved"] = True
+
+                t_reretrieve = time.perf_counter()
+                retry_passages = retrieve_fn(rewritten_query, top_k=top_k)
+                result["reretrieval_latency_s"] = round(
+                    time.perf_counter() - t_reretrieve,
+                    4,
+                )
+
+                retry_system, retry_user = build_rag_prompt(
+                    query,
+                    retry_passages,
+                )
+                retry_answer = llm_chat_fn(
+                    system=retry_system,
+                    user=retry_user,
+                    temperature=temperature,
+                    max_new_tokens=max_new_tokens,
+                )
+                retry_critique = critique_answer(
+                    query,
+                    retry_passages,
+                    retry_answer,
+                    llm_chat_fn,
+                )
+                result["reretrieve_critique"] = retry_critique
+
+                if retry_critique["isrel"]:
+                    answer = retry_answer
+                    result["retrieved"] = True
+                    result["passages_used"] = retry_passages
+                    result["feedback_action"] = "reretrieve"
+
+                    if not retry_critique["issup"]:
+                        print("[Generator] Self-feedback: re-retrieved answer "
+                              "not supported. Regenerating …")
+                        retry_answer = llm_chat_fn(
+                            system=_SYSTEM_REGENERATE,
+                            user=retry_user,
+                            temperature=0.0,
+                            max_new_tokens=max_new_tokens,
+                        )
+                        answer = retry_answer
+                        result["regenerated"] = True
+                        result["feedback_action"] = "reretrieve_regenerate"
+                else:
+                    print("[Generator] Self-feedback: re-retrieved context "
+                          "still not relevant. Falling back to direct "
+                          "generation …")
+                    system3, user3 = build_direct_prompt(query)
+                    answer = llm_chat_fn(
+                        system=system3,
+                        user=user3,
+                        temperature=temperature,
+                        max_new_tokens=max_new_tokens,
+                    )
+                    result["retrieved"]     = False
+                    result["passages_used"] = []
+                    result["feedback_action"] = "direct_fallback"
+            else:
+                # Context is off-topic — fall back to direct generation
+                print("[Generator] Self-feedback: context not relevant. "
+                      "Falling back to direct generation …")
+                system3, user3 = build_direct_prompt(query)
+                answer = llm_chat_fn(
+                    system=system3,
+                    user=user3,
+                    temperature=temperature,
+                    max_new_tokens=max_new_tokens,
+                )
+                result["retrieved"]     = False   # effective mode is direct
+                result["passages_used"] = []
+                result["feedback_action"] = "direct_fallback"
 
     result["answer"] = answer
     return result

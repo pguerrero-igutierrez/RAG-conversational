@@ -12,8 +12,17 @@ from transformers import (
     pipeline,
 )
 
-hf_token = os.environ.get("HF_TOKEN", "")
-hf_cache = "./hf_cache"
+hf_token = os.environ.get("HF_TOKEN")
+if not hf_token:
+    try:
+        from config import HF_TOKEN
+        hf_token = HF_TOKEN
+    except ImportError:
+        hf_token = None
+hf_cache = os.environ.get(
+    "HF_HOME",
+    "/home/igutierrez134/.cache/huggingface",
+)
 model_name = "mistralai/Mixtral-8x7B-Instruct-v0.1"
 
 os.makedirs(hf_cache, exist_ok=True)

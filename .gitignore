@@ -1,10 +1,12 @@
 logs/
+past/
 rag_project/indexes/bge_embeddings.npy
 rag_project/router_model/
 rag_project/router_model_v1/
 config.py
-.slurm
 hf_cache/
 .gitignore
 scripts/__pycache__/
 scripts/__pycache__/evaluate.cpython-311.pyc
+poster/presentation_scripts_v1.txt
+poster/presentation_scripts_v2.txt

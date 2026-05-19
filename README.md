@@ -17,6 +17,20 @@
 08_evaluate.py → métricas: token F1, BERTScore, Recall@k, MRR, oracle. comparación: never / always / router RAG
 
 
+01_load_sqac.sh  ──┐
+                       ├──► 03_build_index.sh
+02_load_chitchat.sh ──┘         │
+                                 ▼
+                       04_train_router.sh
+                                 │
+                    ┌────────────┼────────────┐
+                    ▼            ▼            ▼
+             05_always_rag  06_never_rag  07_router_rag
+                    └────────────┼────────────┘
+                                 ▼
+                          08_evaluate.sh
+
+
 
 An end-to-end Retrieval-Augmented Generation (RAG) system designed for Question Answering in Spanish, evaluated on the SQAC (Spanish Question Answering Corpus) dataset.
 

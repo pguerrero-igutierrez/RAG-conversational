@@ -44,28 +44,94 @@ import time
 from pathlib import Path
 
 # ── Project paths ──────────────────────────────────────────────────────────
-BASE_DIR      = "./rag_project"
-INDEX_DIR     = f"{BASE_DIR}/indexes"
-DATA_DIR      = f"{BASE_DIR}/data"
-OUTPUT_DIR    = f"{BASE_DIR}/outputs"
-ROUTER_DIR    = f"{BASE_DIR}/router_model"
-EVAL_PATH     = f"{DATA_DIR}/sqac_validation.jsonl"
-PRED_PATH_TPL = f"{OUTPUT_DIR}/predictions_{{strategy}}.jsonl"
+ROOT_DIR      = Path(__file__).resolve().parents[1]
+PROCESSED_DIR = ROOT_DIR / "data" / "processed"
+OUTPUT_DIR    = ROOT_DIR / "outputs"
+TEST_SQAC_PATH     = PROCESSED_DIR / "test_sqac.jsonl"
+TEST_CHITCHAT_PATH = PROCESSED_DIR / "test_chitchat.jsonl"
+PRED_PATH_TPL = str(OUTPUT_DIR / "predictions_{run_name}.jsonl")
 
 Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 
+
+def _format_duration(seconds: float) -> str:
+    seconds = max(0, int(seconds))
+    hours, rem = divmod(seconds, 3600)
+    minutes, secs = divmod(rem, 60)
+    if hours:
+        return f"{hours}h {minutes:02d}m {secs:02d}s"
+    if minutes:
+        return f"{minutes}m {secs:02d}s"
+    return f"{secs}s"
+
+
+def _log_progress(message: str) -> None:
+    print(message, flush=True)
+
 # ── Lazy imports (avoid loading GPU models until needed) ───────────────────
-def _load_components(strategy: str):
+def _load_components(
+    strategy: str,
+    router_approach: str | None = None,
+    router_size: int | None = None,
+    router_model_dir: str | None = None,
+):
     """
     Instantiate and return (llm_chat_fn, retriever_fn, router) according to
     the chosen strategy.  Models are loaded once and reused for the session.
     """
-    from load_llm  import llm_chat          # type: ignore
-    from retriever import retrieve           # type: ignore
-    from router    import QueryRouter        # type: ignore
+    from load_llm import llm_chat  # type: ignore
 
-    router = QueryRouter(model_dir=ROUTER_DIR, use_setfit=True)
+    retrieve = None
+    if strategy != "never_rag":
+        from retriever import retrieve  # type: ignore
+
+    router = None
+    if strategy == "router_rag":
+        from router import QueryRouter  # type: ignore
+        router = QueryRouter(
+            approach=router_approach,
+            size=router_size,
+            model_dir=router_model_dir,
+        )
     return llm_chat, retrieve, router
+
+
+def _run_name(
+    strategy: str,
+    router_approach: str | None = None,
+    router_size: int | None = None,
+    run_name: str | None = None,
+) -> str:
+    if run_name:
+        return run_name
+    if strategy != "router_rag" or router_approach is None:
+        return strategy
+    if router_size is None:
+        return f"{strategy}_{router_approach}"
+    return f"{strategy}_{router_approach}_{router_size}"
+
+
+def _load_batch_samples() -> list[dict]:
+    samples: list[dict] = []
+
+    if TEST_SQAC_PATH.exists():
+        with open(TEST_SQAC_PATH, encoding="utf-8") as f:
+            samples.extend(json.loads(line) for line in f)
+
+    if TEST_CHITCHAT_PATH.exists():
+        with open(TEST_CHITCHAT_PATH, encoding="utf-8") as f:
+            for line in f:
+                r = json.loads(line)
+                samples.append({
+                    "id": r["id"],
+                    "question": r.get("text", ""),
+                    "doc_id": "",
+                    "answers": [],
+                    "reference_answers": r.get("answers", []),
+                    "label": 0,
+                })
+
+    return samples
 
 
 # ── Core pipeline step ─────────────────────────────────────────────────────
@@ -77,6 +143,7 @@ def run_query(
     router,
     top_k:      int  = 3,
     use_feedback: bool = True,
+    corpus_expected: bool = False,
 ) -> dict:
     """
     Execute the full pipeline for a single *query* under the given *strategy*.
@@ -88,6 +155,7 @@ def run_query(
     t_start = time.perf_counter()
 
     # ── Routing decision ──────────────────────────────────────────────────
+    t_route = time.perf_counter()
     if strategy == "always_rag":
         do_retrieve = True
         router_label = "always"
@@ -97,6 +165,7 @@ def run_query(
     else:                                   # router_rag
         do_retrieve  = router.needs_retrieval(query)
         router_label = "retrieve" if do_retrieve else "skip"
+    routing_latency = time.perf_counter() - t_route
 
     # ── Retrieval ─────────────────────────────────────────────────────────
     passages: list[dict] = []
@@ -111,7 +180,10 @@ def run_query(
         query          = query,
         passages       = passages if do_retrieve else None,
         llm_chat_fn    = llm_chat_fn,
+        retrieve_fn    = retrieve_fn if do_retrieve else None,
         use_self_feedback = use_feedback and do_retrieve,
+        allow_reretrieve = corpus_expected,
+        top_k          = top_k,
     )
 
     total_latency = time.perf_counter() - t_start
@@ -123,9 +195,19 @@ def run_query(
         "do_retrieve":        do_retrieve,
         "passages_retrieved": [p["id"] for p in passages],
         "answer":             gen_out["answer"],
+        "initial_answer":     gen_out.get("initial_answer", gen_out["answer"]),
+        "feedback_action":    gen_out.get("feedback_action", "skipped"),
+        "rewritten_query":    gen_out.get("rewritten_query", ""),
+        "reretrieved":        gen_out.get("reretrieved", False),
+        "reretrieval_latency_s": gen_out.get("reretrieval_latency_s", 0.0),
+        "final_passages_retrieved": [
+            p["id"] for p in gen_out.get("passages_used", [])
+        ],
         "effective_retrieved":gen_out["retrieved"],
         "regenerated":        gen_out["regenerated"],
         "critique":           gen_out.get("critique", {}),
+        "reretrieve_critique": gen_out.get("reretrieve_critique", {}),
+        "routing_latency_s":  round(routing_latency, 4),
         "retrieval_latency_s":round(retrieval_latency, 4),
         "total_latency_s":    round(total_latency, 4),
     }
@@ -187,32 +269,40 @@ def batch_mode(
     router,
     top_k: int,
     use_feedback: bool,
-    eval_path: str = EVAL_PATH,
+    run_name: str,
 ) -> str:
     """
     Run the pipeline over the entire validation set and save predictions.
 
     Returns the path of the written predictions file.
     """
-    if not Path(eval_path).exists():
+    samples = _load_batch_samples()
+    if not samples:
         raise FileNotFoundError(
-            f"Evaluation file not found: {eval_path}\n"
-            "Run load_dataset.py first."
+            "Unified test set not found. Run load_sqac.py and "
+            "load_chatsubs.py first."
         )
 
-    with open(eval_path, encoding="utf-8") as f:
-        samples = [json.loads(l) for l in f]
+    pred_path = PRED_PATH_TPL.format(run_name=run_name)
 
-    pred_path = PRED_PATH_TPL.format(strategy=strategy)
-
-    print(f"\n[Main] Batch mode | strategy={strategy} | {len(samples)} samples")
-    print(f"[Main] Predictions → {pred_path}\n")
+    print(
+        f"\n[Main] Batch mode | strategy={strategy} "
+        f"| run={run_name} | {len(samples)} samples",
+        flush=True,
+    )
+    print(f"[Main] Predictions → {pred_path}\n", flush=True)
 
     with open(pred_path, "w", encoding="utf-8") as out_f:
+        batch_started_at = time.perf_counter()
         for i, sample in enumerate(samples, 1):
             query    = sample["question"]
             doc_id   = sample.get("doc_id", "")
             gold     = sample.get("answers", [])
+
+            _log_progress(
+                f"  [{i}/{len(samples)}] starting "
+                f"id={sample.get('id', f's{i}')} | strategy={strategy}"
+            )
 
             result = run_query(
                 query       = query,
@@ -222,22 +312,30 @@ def batch_mode(
                 router      = router,
                 top_k       = top_k,
                 use_feedback= use_feedback,
+                corpus_expected = bool(doc_id),
             )
 
             record = {
                 **result,
+                "run_name":        run_name,
                 "sample_id":      sample.get("id", f"s{i}"),
                 "gold_doc_id":    doc_id,
                 "gold_answers":   gold,
+                "reference_answers": sample.get("reference_answers", []),
             }
             out_f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            out_f.flush()
 
-            if i % 10 == 0 or i == len(samples):
-                print(
-                    f"  [{i}/{len(samples)}] "
-                    f"decision={result['router_decision']} | "
-                    f"lat={result['total_latency_s']:.2f}s"
-                )
+            elapsed = time.perf_counter() - batch_started_at
+            avg_per_sample = elapsed / i
+            eta = avg_per_sample * (len(samples) - i)
+            _log_progress(
+                f"  [{i}/{len(samples)}] done | "
+                f"decision={result['router_decision']} | "
+                f"lat={result['total_latency_s']:.2f}s | "
+                f"elapsed={_format_duration(elapsed)} | "
+                f"ETA={_format_duration(eta)}"
+            )
 
     print(f"\n[Main] Done. Predictions saved → {pred_path}")
     return pred_path
@@ -271,6 +369,30 @@ def _parse_args() -> argparse.Namespace:
         "--no_feedback", action="store_true",
         help="Disable the self-feedback verification loop.",
     )
+    parser.add_argument(
+        "--router_approach",
+        choices=["frozen_lr", "setfit", "finetune"],
+        default=None,
+        help="Force a specific trained router approach for router_rag.",
+    )
+    parser.add_argument(
+        "--router_size", type=int, default=None,
+        help="Force a specific trained router size for router_rag.",
+    )
+    parser.add_argument(
+        "--router_model_dir", type=str, default=None,
+        help=(
+            "Load a router directly from this model directory. "
+            "Useful for oracle-trained SetFit checkpoints."
+        ),
+    )
+    parser.add_argument(
+        "--run_name", type=str, default=None,
+        help=(
+            "Prediction-file suffix. Defaults to the strategy/model name; "
+            "set this when using --router_model_dir to avoid overwrites."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -278,9 +400,20 @@ def _parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parser = _parse_args()
     use_feedback = not args.no_feedback
+    run_name = _run_name(
+        args.strategy,
+        args.router_approach,
+        args.router_size,
+        args.run_name,
+    )
 
     print("[Main] Loading models …")
-    llm_chat_fn, retrieve_fn, router = _load_components(args.strategy)
+    llm_chat_fn, retrieve_fn, router = _load_components(
+        args.strategy,
+        router_approach=args.router_approach,
+        router_size=args.router_size,
+        router_model_dir=args.router_model_dir,
+    )
     print("[Main] All components loaded.\n")
 
     if args.mode == "interactive":
@@ -315,6 +448,7 @@ def main() -> None:
             router      = router,
             top_k       = args.top_k,
             use_feedback= use_feedback,
+            run_name    = run_name,
         )
 
 

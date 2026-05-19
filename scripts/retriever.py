@@ -5,18 +5,18 @@ cosine similarity, followed by cross-encoder reranking.
 
 import json
 import pickle
+from pathlib import Path
 import numpy as np
 from FlagEmbedding import BGEM3FlagModel
 from sentence_transformers import CrossEncoder
-from config import HF_TOKEN
 
-base_dir = "./rag_project"
-index_dir = f"{base_dir}/indexes"
+ROOT_DIR = Path(__file__).resolve().parents[1]
+index_dir = ROOT_DIR / "data" / "indexes"
 
-bm25_path = f"{index_dir}/bm25.pkl"
-embeddings_path = f"{index_dir}/bge_embeddings.npy"
-corpus_ids_path = f"{index_dir}/corpus_ids.json"
-corpus_path = f"{index_dir}/sqac_corpus.jsonl"
+bm25_path = index_dir / "bm25.pkl"
+embeddings_path = index_dir / "bge_embeddings.npy"
+corpus_ids_path = index_dir / "corpus_ids.json"
+corpus_path = index_dir / "sqac_corpus.jsonl"
 
 with open(bm25_path, "rb") as f:
     bm25 = pickle.load(f)
@@ -33,6 +33,12 @@ id_to_doc = {r["id"]: r for r in corpus}
 
 bge_model = BGEM3FlagModel("BAAI/bge-m3", use_fp16=True)
 cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+
+
+def _doc_text(doc):
+    title = doc.get("title", "")
+    context = doc.get("context", "")
+    return f"{title}: {context}" if title else context
 
 
 def retrieve(question, top_k=10, bm25_weight=0.4, dense_weight=0.6, rerank_top=3):
@@ -55,7 +61,7 @@ def retrieve(question, top_k=10, bm25_weight=0.4, dense_weight=0.6, rerank_top=3
     top_indices = np.argsort(hybrid_scores)[::-1][:top_k]
 
     candidates = [id_to_doc[corpus_ids[i]] for i in top_indices]
-    pairs = [[question, f"{c['title']}: {c['context']}"] for c in candidates]
+    pairs = [[question, _doc_text(c)] for c in candidates]
     ce_scores = cross_encoder.predict(pairs)
 
     reranked = sorted(zip(candidates, ce_scores), key=lambda x: x[1], reverse=True)
@@ -67,5 +73,5 @@ if __name__ == "__main__":
     results = retrieve(sample_question)
     print(f"Query: {sample_question}\n")
     for i, doc in enumerate(results, 1):
-        print(f"[{i}] {doc['id']} — {doc['title']}")
+        print(f"[{i}] {doc['id']} — {doc.get('title', '(sin título)')}")
         print(f"     {doc['context'][:200]}...\n")
