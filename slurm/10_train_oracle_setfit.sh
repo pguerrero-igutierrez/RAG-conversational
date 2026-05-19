@@ -25,7 +25,7 @@ echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
 
 python scripts/train_oracle_setfit.py \
-  --data outputs/oracle_train_sqac_64_per_label.jsonl \
+  --data corpus/oracle_train_sqac_64_per_label.jsonl \
   --save_dir models/router_oracle/setfit/64_per_label \
   --num_epochs 4 \
   --num_iterations 24 \

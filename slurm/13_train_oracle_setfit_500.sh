@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name=apps2-oracle-train-500
+#SBATCH --job-name=apps2-oracle-setfit-500
 #SBATCH --cpus-per-task=8
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --time=36:00:00
+#SBATCH --time=12:00:00
 #SBATCH --mem=64GB
 #SBATCH --gres=gpu:1
-#SBATCH --output=/home/igutierrez134/apps2/logs/oracle_train_500_%j.log
-#SBATCH --error=/home/igutierrez134/apps2/logs/oracle_train_500_%j.err
+#SBATCH --output=/home/igutierrez134/apps2/logs/train_oracle_setfit_500_%j.log
+#SBATCH --error=/home/igutierrez134/apps2/logs/train_oracle_setfit_500_%j.err
 #SBATCH --chdir=/home/igutierrez134/apps2
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=igutierrez134@ikasle.ehu.eus
@@ -24,10 +24,11 @@ echo "Date: $(date)"
 echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
 
-python scripts/build_oracle_train_subset.py \
-  --target_per_label 500 \
-  --candidate_batch 8 \
-  --seed 42 \
-  --output corpus/oracle_train_sqac_500_per_label.jsonl
+python scripts/train_oracle_setfit.py \
+  --data corpus/oracle_train_sqac_500_per_label.jsonl \
+  --save_dir models/router_oracle/setfit/500_per_label \
+  --num_epochs 4 \
+  --num_iterations 24 \
+  --batch_size 16
 
 echo "Job finished at $(date)"

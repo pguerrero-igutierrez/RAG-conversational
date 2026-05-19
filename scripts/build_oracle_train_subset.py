@@ -24,9 +24,9 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 PROCESSED_DIR = ROOT_DIR / "data" / "processed"
-OUTPUT_DIR = ROOT_DIR / "outputs"
+CORPUS_DIR = ROOT_DIR / "corpus"
 TRAIN_SQAC_PATH = PROCESSED_DIR / "router_train_sqac.jsonl"
-DEFAULT_OUTPUT_PATH = OUTPUT_DIR / "oracle_train_sqac_64_per_label.jsonl"
+DEFAULT_OUTPUT_PATH = CORPUS_DIR / "oracle_train_sqac_64_per_label.jsonl"
 
 sys.path.insert(0, str(ROOT_DIR / "scripts"))
 
@@ -76,7 +76,7 @@ def build_oracle_subset(
     output_path: Path,
     max_candidates: int | None,
 ) -> None:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     seen_ids, counts = _load_existing(output_path)
     samples = _load_sqac_train(seed)
 

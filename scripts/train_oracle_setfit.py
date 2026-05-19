@@ -14,9 +14,9 @@ import time
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-OUTPUT_DIR = ROOT_DIR / "outputs"
+CORPUS_DIR = ROOT_DIR / "corpus"
 MODEL_DIR = ROOT_DIR / "models" / "router_oracle" / "setfit"
-DEFAULT_DATA_PATH = OUTPUT_DIR / "oracle_train_sqac_64_per_label.jsonl"
+DEFAULT_DATA_PATH = CORPUS_DIR / "oracle_train_sqac_64_per_label.jsonl"
 DEFAULT_SAVE_DIR = MODEL_DIR / "64_per_label"
 
 sys.path.insert(0, str(ROOT_DIR / "scripts"))
