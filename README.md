@@ -1,4 +1,4 @@
-# RAG Conversational
+# Spanish conversational system with router-controlled RAG
 
 Spanish Retrieval-Augmented Generation (RAG) experiments for deciding when a conversational assistant should retrieve external context and when it should answer directly.
 
