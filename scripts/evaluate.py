@@ -8,11 +8,16 @@ samples total by default) and computes all metrics across pipeline strategies.
 
 Metrics
 -------
-  Retrieval decision performance  (all test samples)
+  Pre-feedback retrieval decision performance  (all test samples)
   ──────────────────────────────
-    Accuracy               — correct retrieve/skip decisions
+    Accuracy               — correct initial retrieve/skip decisions
     Macro F1               — balanced F1 across both classes
     F1 per class           — F1 for no_retrieval and retrieval separately
+
+  Post-feedback effective retrieval performance  (all test samples)
+  ──────────────────────────────
+    Accuracy / Macro F1    — final effective retrieve/skip state after
+                             self-feedback can discard or re-retrieve context
 
   Oracle policy evaluation  (SQAC samples only)
   ────────────────────────
@@ -150,10 +155,12 @@ def reciprocal_rank(retrieved_ids: list[str], gold_id: str) -> float:
 def retrieval_decision_classification_metrics(
     records:     list[dict],
     gold_labels: dict[str, int],
+    decision_key: str = "do_retrieve",
 ) -> dict:
     """
     Compute accuracy and F1 for retrieval decisions on the unified test set.
     gold_labels: sample_id → 0 or 1 (from test set ground truth).
+    decision_key: record field containing the binary retrieve/skip decision.
     """
     from sklearn.metrics import accuracy_score, f1_score, classification_report
 
@@ -163,7 +170,7 @@ def retrieval_decision_classification_metrics(
         if sid not in gold_labels:
             continue
         golds.append(gold_labels[sid])
-        preds.append(int(rec.get("do_retrieve", True)))
+        preds.append(int(rec.get(decision_key, rec.get("do_retrieve", True))))
 
     if not preds:
         return {}
@@ -194,6 +201,8 @@ def compute_oracle_policy_accuracy(
     policy_records:      list[dict],
     always_rag_records:  list[dict],
     never_rag_records:   list[dict],
+    decision_key: str = "do_retrieve",
+    prefix: str = "oracle_policy",
 ) -> dict:
     """
     Oracle label per SQAC sample:
@@ -242,17 +251,21 @@ def compute_oracle_policy_accuracy(
         oracle = 1 if always_score > never_score else 0
         oracle_labels[sid] = oracle
 
-        policy_decision = int(policy_rec.get("do_retrieve", True))
+        policy_decision = int(
+            policy_rec.get(decision_key, policy_rec.get("do_retrieve", True))
+        )
         if policy_decision == oracle:
             correct += 1
 
     n = len(common_ids)
     n_retrieve = sum(oracle_labels.values())
     return {
-        "oracle_policy_accuracy": round((correct / n) * 100, 4) if n else None,
-        "n_samples":             n,
-        "oracle_retrieve_rate":  round((n_retrieve / n) * 100, 4) if n else None,
-        "oracle_score_metric":    "bertscore_f1",
+        f"{prefix}_accuracy": round((correct / n) * 100, 4) if n else None,
+        f"{prefix}_n_samples": n,
+        f"{prefix}_retrieve_rate": (
+            round((n_retrieve / n) * 100, 4) if n else None
+        ),
+        f"{prefix}_score_metric": "bertscore_f1",
     }
 
 
@@ -314,6 +327,7 @@ def evaluate_strategy(
     routing_latencies                   = []
     retrieval_latencies                 = []
     n_retrieved                         = 0
+    n_effective_retrieved               = 0
     feedback_before_f1, feedback_after_f1 = [], []
     feedback_deltas                       = []
     feedback_actions: dict[str, int]      = {}
@@ -390,6 +404,8 @@ def evaluate_strategy(
         # Retrieval rate
         if rec.get("do_retrieve", False):
             n_retrieved += 1
+        if rec.get("effective_retrieved", rec.get("do_retrieve", False)):
+            n_effective_retrieved += 1
 
         latencies.append(rec.get("total_latency_s", 0.0))
         routing_latencies.append(rec.get("routing_latency_s", 0.0))
@@ -411,19 +427,46 @@ def evaluate_strategy(
         if preds_for_bert else []
     )
 
-    # Retrieval-decision classification metrics (all test samples)
-    decision_met = retrieval_decision_classification_metrics(records, gold_labels)
+    # Retrieval-decision classification metrics (all test samples).
+    # Pre-feedback is the router's original retrieve/skip choice. Post-feedback
+    # is the effective mode after the self-feedback loop can discard irrelevant
+    # context or accept re-retrieved passages.
+    pre_feedback_decision_met = retrieval_decision_classification_metrics(
+        records,
+        gold_labels,
+        decision_key="do_retrieve",
+    )
+    post_feedback_decision_met = retrieval_decision_classification_metrics(
+        records,
+        gold_labels,
+        decision_key="effective_retrieved",
+    )
 
     # Oracle retrieval-decision evaluation. The oracle is derived at evaluation
-    # time by comparing always_rag and never_rag F1 against gold answers.
+    # time by comparing always_rag and never_rag BERTScore against gold answers.
     oracle_met: dict = {}
     if (
         always_rag_records is not None
         and never_rag_records is not None
     ):
-        oracle_met = compute_oracle_policy_accuracy(
-            records, always_rag_records, never_rag_records,
+        pre_oracle_met = compute_oracle_policy_accuracy(
+            records,
+            always_rag_records,
+            never_rag_records,
+            decision_key="do_retrieve",
+            prefix="pre_feedback_oracle_policy",
         )
+        post_oracle_met = compute_oracle_policy_accuracy(
+            records,
+            always_rag_records,
+            never_rag_records,
+            decision_key="effective_retrieved",
+            prefix="post_feedback_oracle_policy",
+        )
+        oracle_met = {
+            **pre_oracle_met,
+            **post_oracle_met,
+        }
 
     token_f1_pct = float(np.mean(f1_scores) * 100) if f1_scores else None
     bertscore_f1_pct = (
@@ -466,6 +509,12 @@ def evaluate_strategy(
         "retrieval_rate": (
             (n_retrieved / len(records)) * 100 if records else None
         ),
+        "pre_feedback_retrieval_rate": (
+            (n_retrieved / len(records)) * 100 if records else None
+        ),
+        "post_feedback_retrieval_rate": (
+            (n_effective_retrieved / len(records)) * 100 if records else None
+        ),
         # Self-feedback impact. These are None for old prediction files that
         # do not contain initial_answer/feedback_action yet.
         "feedback_n_scored": n_feedback_records,
@@ -504,14 +553,42 @@ def evaluate_strategy(
             if n_reretrieve_gold_opportunities else None
         ),
         "reretrieve_gold_opportunities": n_reretrieve_gold_opportunities,
-        # Retrieval-decision classification
+        # Backwards-compatible aliases for the pre-feedback router decision.
         **{
             f"retrieval_decision_{k}": v
-            for k, v in decision_met.items()
+            for k, v in pre_feedback_decision_met.items()
             if k != "report"
         },
-        "retrieval_decision_report": decision_met.get("report", ""),
-        # Oracle retrieval-decision evaluation
+        "retrieval_decision_report": pre_feedback_decision_met.get("report", ""),
+        # Explicit pre/post self-feedback routing evaluations.
+        **{
+            f"pre_feedback_retrieval_decision_{k}": v
+            for k, v in pre_feedback_decision_met.items()
+            if k != "report"
+        },
+        "pre_feedback_retrieval_decision_report": (
+            pre_feedback_decision_met.get("report", "")
+        ),
+        **{
+            f"post_feedback_retrieval_decision_{k}": v
+            for k, v in post_feedback_decision_met.items()
+            if k != "report"
+        },
+        "post_feedback_retrieval_decision_report": (
+            post_feedback_decision_met.get("report", "")
+        ),
+        # Backwards-compatible aliases for pre-feedback oracle policy accuracy.
+        "oracle_policy_accuracy": oracle_met.get(
+            "pre_feedback_oracle_policy_accuracy"
+        ),
+        "n_samples": oracle_met.get("pre_feedback_oracle_policy_n_samples"),
+        "oracle_retrieve_rate": oracle_met.get(
+            "pre_feedback_oracle_policy_retrieve_rate"
+        ),
+        "oracle_score_metric": oracle_met.get(
+            "pre_feedback_oracle_policy_score_metric"
+        ),
+        # Explicit pre/post self-feedback oracle retrieval policy evaluation.
         **oracle_met,
     }
 
@@ -526,7 +603,8 @@ def print_summary_table(results: list[dict]) -> None:
         ("Mean latency (s)",      "mean_latency_s"),
         ("Mean decision latency (s)", "mean_routing_latency_s"),
         ("Mean retrieval latency (s)", "mean_retrieval_latency_s"),
-        ("Retrieval rate",        "retrieval_rate"),
+        ("Retrieval rate (pre-FB)", "pre_feedback_retrieval_rate"),
+        ("Retrieval rate (post-FB)", "post_feedback_retrieval_rate"),
         ("FB scored samples",     "feedback_n_scored"),
         ("FB F1 before",          "feedback_token_f1_before"),
         ("FB F1 after",           "feedback_token_f1_after"),
@@ -537,15 +615,18 @@ def print_summary_table(results: list[dict]) -> None:
         ("FB worsened rate",      "feedback_worsened_rate"),
         ("Reretrieve rate",       "reretrieve_rate"),
         ("Reretrieve gold recovery", "reretrieve_gold_recovery_rate"),
-        ("Retrieval decision accuracy", "retrieval_decision_accuracy"),
-        ("Retrieval decision macro F1", "retrieval_decision_macro_f1"),
-        ("Oracle policy accuracy", "oracle_policy_accuracy"),
-        ("Oracle retrieve rate",  "oracle_retrieve_rate"),
+        ("Pre-FB decision accuracy", "pre_feedback_retrieval_decision_accuracy"),
+        ("Pre-FB decision macro F1", "pre_feedback_retrieval_decision_macro_f1"),
+        ("Post-FB decision accuracy", "post_feedback_retrieval_decision_accuracy"),
+        ("Post-FB decision macro F1", "post_feedback_retrieval_decision_macro_f1"),
+        ("Pre-FB oracle accuracy", "pre_feedback_oracle_policy_accuracy"),
+        ("Post-FB oracle accuracy", "post_feedback_oracle_policy_accuracy"),
+        ("Oracle retrieve rate",  "pre_feedback_oracle_policy_retrieve_rate"),
     ]
 
     strats = [r["strategy"] for r in results]
-    col_w  = 22
-    val_w  = 16
+    col_w  = 28
+    val_w  = max(16, max((len(s) for s in strats), default=14) + 2)
 
     sep    = "─" * (col_w + val_w * len(strats))
     header = f"{'Metric':<{col_w}}" + "".join(f"{s:>{val_w}}" for s in strats)
@@ -567,13 +648,20 @@ def print_summary_table(results: list[dict]) -> None:
 
     # Print per-strategy retrieval-decision classification reports
     for r in results:
-        report = r.get("retrieval_decision_report", "")
+        report = r.get("pre_feedback_retrieval_decision_report", "")
         if report:
             print(
-                f"── Retrieval decision classification report: "
+                f"── Pre-feedback retrieval decision report: "
                 f"{r['strategy']} ──"
             )
             print(report)
+        post_report = r.get("post_feedback_retrieval_decision_report", "")
+        if post_report:
+            print(
+                f"── Post-feedback effective retrieval decision report: "
+                f"{r['strategy']} ──"
+            )
+            print(post_report)
 
 
 # ── Save report ────────────────────────────────────────────────────────────
@@ -583,7 +671,11 @@ def save_report(results: list[dict]) -> None:
     for r in results:
         r2 = {
             k: v for k, v in r.items()
-            if k != "retrieval_decision_report"
+            if k not in {
+                "retrieval_decision_report",
+                "pre_feedback_retrieval_decision_report",
+                "post_feedback_retrieval_decision_report",
+            }
         }
         saveable.append(r2)
     with open(REPORT_PATH, "w", encoding="utf-8") as f:

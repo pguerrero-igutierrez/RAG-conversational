@@ -153,15 +153,17 @@ The Slurm scripts assume the project lives at `/home/igutierrez134/apps2` and us
 
 The tracked report in `outputs/evaluation_report.json` evaluates 170 total samples: 85 SQAC questions and 85 conversational prompts.
 
-| Strategy | Token F1 | BERTScore F1 | Retrieval decision accuracy | Retrieval rate | Mean latency |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `always_rag` | 7.88 | 61.10 | 50.00 | 100.00 | 13.94s |
-| `never_rag` | 4.57 | 58.21 | 50.00 | 0.00 | 6.64s |
-| `router_rag_frozen_lr_15036` | 7.39 | 60.81 | 97.06 | 48.24 | 10.33s |
-| `router_rag_setfit_15036` | 8.12 | 61.22 | 98.82 | 48.82 | 10.05s |
-| `router_rag_finetune_12500` | 7.64 | 61.09 | 99.41 | 50.59 | 9.98s |
-| `router_rag_oracle_setfit_500` | 6.98 | 59.78 | 52.94 | 47.65 | 9.82s |
-| `router_rag_oracle_setfit_64` | 6.03 | 59.68 | 52.94 | 44.12 | 10.10s |
+| Strategy | Retrieve NoSF/SF | Latency NoSF/SF | Token F1 | BERTScore F1 | Dataset acc. NoSF/SF | Oracle acc. NoSF/SF |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `always_rag` | 100.00 / 61.76 | 6.21s / 13.94s | 7.88 | 61.10 | 50.00 / 61.18 | 69.41 / 77.65 |
+| `never_rag` | 0.00 / 0.00 | 6.68s / 6.64s | 4.57 | 58.21 | 50.00 / 50.00 | 30.59 / 30.59 |
+| `router_rag_frozen_lr_15036` | 48.24 / 34.12 | 5.82s / 10.33s | 7.39 | 60.81 | 97.06 / 84.12 | 67.06 / 72.94 |
+| `router_rag_setfit_15036` | 48.82 / 35.88 | 5.54s / 10.05s | 8.12 | 61.22 | 98.82 / 85.88 | 69.41 / 76.47 |
+| `router_rag_finetune_12500` | 50.59 / 37.65 | 5.53s / 9.98s | 7.64 | 61.09 | 99.41 / 87.65 | 69.41 / 75.29 |
+| `router_rag_oracle_setfit_500` | 47.65 / 32.35 | 6.77s / 9.82s | 6.98 | 59.78 | 52.94 / 58.82 | 57.65 / 57.65 |
+| `router_rag_oracle_setfit_64` | 44.12 / 22.94 | 6.75s / 10.10s | 6.03 | 59.68 | 52.94 / 57.65 | 49.41 / 49.41 |
+
+NoSF latency comes from the no-feedback rerun summarized in `outputs/latency_pre_post_summary.json`. SF metrics come from the saved full self-feedback runs in `outputs/evaluation_report.json`.
 
 ## Notes
 

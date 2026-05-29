@@ -1,0 +1,58 @@
+[
+  {
+    "model": "Always RAG",
+    "pre_feedback_latency_s": 6.213,
+    "post_feedback_latency_s": 13.9371,
+    "delta_latency_s": 7.7241,
+    "pre_n_samples": 170,
+    "post_n_samples": 170
+  },
+  {
+    "model": "Never RAG",
+    "pre_feedback_latency_s": 6.6758,
+    "post_feedback_latency_s": 6.6417,
+    "delta_latency_s": -0.0341,
+    "pre_n_samples": 170,
+    "post_n_samples": 170
+  },
+  {
+    "model": "Frozen LR router",
+    "pre_feedback_latency_s": 5.8207,
+    "post_feedback_latency_s": 10.3333,
+    "delta_latency_s": 4.5126,
+    "pre_n_samples": 170,
+    "post_n_samples": 170
+  },
+  {
+    "model": "SetFit router",
+    "pre_feedback_latency_s": 5.5421,
+    "post_feedback_latency_s": 10.0477,
+    "delta_latency_s": 4.5057,
+    "pre_n_samples": 170,
+    "post_n_samples": 170
+  },
+  {
+    "model": "Fine-tuned router",
+    "pre_feedback_latency_s": 5.5261,
+    "post_feedback_latency_s": 9.9794,
+    "delta_latency_s": 4.4533,
+    "pre_n_samples": 170,
+    "post_n_samples": 170
+  },
+  {
+    "model": "Oracle SetFit-500",
+    "pre_feedback_latency_s": 6.7685,
+    "post_feedback_latency_s": 9.822,
+    "delta_latency_s": 3.0534,
+    "pre_n_samples": 170,
+    "post_n_samples": 170
+  },
+  {
+    "model": "Oracle SetFit-64",
+    "pre_feedback_latency_s": 6.7519,
+    "post_feedback_latency_s": 10.0993,
+    "delta_latency_s": 3.3474,
+    "pre_n_samples": 170,
+    "post_n_samples": 170
+  }
+]
