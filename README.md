@@ -173,8 +173,21 @@ The tracked report in `outputs/evaluation_report.json` evaluates 170 total sampl
 
 NoSF latency comes from the no-feedback rerun summarized in `outputs/latency_pre_post_summary.json`. SF metrics come from the saved full self-feedback runs in `outputs/evaluation_report.json`.
 
-## Notes
+## Reproducibility Notes
 
-- `outputs/` is tracked in this repository because the prediction files are small and useful for reproducing the reported evaluation.
-- `corpus/oracle_train_sqac_*.jsonl` contains derived oracle-labeled SQAC training examples and is tracked as project data.
-- Poster files are not part of the GitHub-facing project state; `poster/template.tex` is ignored intentionally.
+- `outputs/` contains the saved prediction and evaluation artifacts used to reproduce the reported results.
+- `corpus/oracle_train_sqac_*.jsonl` contains derived oracle-labeled SQAC examples used for router training experiments.
+
+
+---
+
+## Contact
+
+**Iker Gutierrez Fandiño**<br>
+*Computational linguist*<br>
+[GitHub Profile](https://github.com/iker-gutierrez) | [LinkedIn](https://www.linkedin.com/in/iker-gutierrez-fandino)
+
+**Paula Guerrero Castelló**<br> 
+*Computational linguist & translator ES/FR/EN/CA/ZH*<br>
+[GitHub Profile](https://github.com/guerreropaula) | [LinkedIn](https://www.linkedin.com/in/paula-guerrero-castelló)
+
