@@ -19,7 +19,7 @@ The project compares three retrieval policies:
 
 The pipeline combines hybrid retrieval (BM25 + BGE-M3 + MiniLM reranker) with a self-feedback loop inspired by Self-RAG, and evaluates three router training strategies across eleven data sizes.
 
-## Repository Layout
+## Repository layout
 
 ```text
 .
@@ -73,9 +73,9 @@ Alternatively, the code can read `HF_TOKEN` from a local `config.py`.
 
 ---
 
-## Running the System
+## Running the system
 
-### Quick Test: Single Query
+### Quick test: single query
 
 ```bash
 python scripts/main.py \
