@@ -9,12 +9,12 @@ University of the Basque Country (EHU) · Natural Language Applications II · 20
 ---
 
 
-This repository implements Spanish conversational system with a Retrieval-Augmented Generation (RAG) router that decides when a conversational assistant should retrieve external context and when it should answer directly.
+This repository implements a Spanish conversational system with a Retrieval-Augmented Generation (RAG) router that decides when a conversational assistant should retrieve external context and when it should answer directly.
 
 The project compares three retrieval policies:
 
-- `always_rag`: always retrieve from the SQAC corpus before generation.
-- `never_rag`: answer directly with the LLM.
+- `always_rag` (baseline): always retrieve from the SQAC corpus before generation.
+- `never_rag` (baseline): answer directly with the LLM.
 - `router_rag`: use a learned query router to decide whether retrieval is needed.
 
 The pipeline combines SQAC question answering data, conversational/chitchat data, hybrid retrieval, Mixtral generation, self-feedback, and several learned router variants.
