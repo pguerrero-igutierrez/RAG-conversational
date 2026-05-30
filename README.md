@@ -8,7 +8,8 @@ University of the Basque Country (EHU) · Natural Language Applications II · 20
 
 ---
 
-Spanish Retrieval-Augmented Generation (RAG) experiments for deciding when a conversational assistant should retrieve external context and when it should answer directly.
+
+This repository implements Spanish conversational system with a Retrieval-Augmented Generation (RAG) router that decides when a conversational assistant should retrieve external context and when it should answer directly.
 
 The project compares three retrieval policies:
 
@@ -34,8 +35,6 @@ The pipeline combines SQAC question answering data, conversational/chitchat data
 ├── requirements.txt
 └── README.md
 ```
-
-Ignored local artifacts include `data/`, `models/`, `logs/`, `hf_cache/`, `past/`, Python caches, local `config.py`, and poster build/source files such as `poster/template.tex`.
 
 ## Main Components
 
@@ -190,4 +189,3 @@ NoSF latency comes from the no-feedback rerun summarized in `outputs/latency_pre
 **Paula Guerrero Castelló**<br> 
 *Computational linguist & translator ES/FR/EN/CA/ZH*<br>
 [GitHub Profile](https://github.com/guerreropaula) | [LinkedIn](https://www.linkedin.com/in/paula-guerrero-castelló)
-
