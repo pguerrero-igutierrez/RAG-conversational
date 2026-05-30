@@ -1,6 +1,6 @@
 # Spanish conversational system with router-controlled RAG
 
-[![Poster](https://img.shields.io/badge/Poster-PDF-red)](poster/final_poster.pdf)
+[![Poster](https://img.shields.io/badge/Poster-PDF-red)](poster.pdf)
 [![Models](https://img.shields.io/badge/HuggingFace-Models-yellow)](https://huggingface.co/collections/pguerrero-igutierrez/rag-routers-spanish)
 
 **Iker Gutierrez Fandiño & Paula Guerrero Castelló**<br>
