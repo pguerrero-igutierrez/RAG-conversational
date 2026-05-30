@@ -31,7 +31,6 @@ The pipeline combines hybrid retrieval (BM25 + BGE-M3 + MiniLM reranker) with a 
 │   └── oracle_train_sqac_500_per_label.jsonl # Oracle-labeled training corpora (1000 samples)
 ├── outputs/                   # Final evaluation reports and prediction files
 ├── scripts/                   # Data prep, indexing, routing, generation, eval
-├── slurm/                     # Cluster job scripts for the full workflow
 ├── requirements.txt
 └── README.md
 ```
