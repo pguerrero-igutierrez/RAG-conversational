@@ -286,10 +286,12 @@ Evaluated on 170 samples (85 SQAC + 85 chitchat). NoSF = no self-feedback; SF = 
 | `router_rag_oracle_setfit_64` | 44.1 / 22.9 | 6.75s / 10.10s | 6.03 | 59.68 | 52.9 / 57.7 | 49.4 / 49.4 |
  
 Key findings:
-- **SetFit** is the best quality/cost router: slightly higher answer quality than Always RAG while retrieving on only ~49% of queries (27.9% latency reduction).
-- **SetFit reaches 97.6% validation macro F1 with just 8 examples per class.**
-- **Self-feedback** improves oracle accuracy by 5–8 points across all router variants by filtering irrelevant retrieved contexts.
-- **Oracle-label routers underperform** dataset-label routers on oracle accuracy, indicating BERTScore difference is too noisy a training signal at small scales.
+ 
+1. **A learned router is worthwhile.** SetFit gives the best quality/cost trade-off: slightly better answer quality while reducing retrieval from 100% to 48.8%, a 27.9% latency reduction relative to Always RAG.
+2. **SetFit is the practical router choice.** It reaches 97.6% validation macro F1 with only 8 examples per class and remains competitive with full fine-tuning, which only pulls ahead at larger training sizes.
+3. **Oracle-label training is harder than dataset-label training.** Routers trained on oracle labels underperform the dataset-label routers on oracle accuracy.
+4. **Self-feedback mainly catches unnecessary retrieval.** Dataset-label routers retrieve in about half of the samples before SF, but only 34.1–37.6% after SF, while oracle accuracy improves by 5.88–7.06 points.
+
 ---
  
 ## Reproducibility
