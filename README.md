@@ -160,7 +160,7 @@ The Slurm scripts assume the project lives at `/home/igutierrez134/apps2` and us
 
 The tracked report in `outputs/evaluation_report.json` evaluates 170 total samples: 85 SQAC questions and 85 conversational prompts.
 
-| Strategy | Retrieve NoSF/SF | Latency NoSF/SF | Token F1 | BERTScore F1 | Dataset acc. NoSF/SF | Oracle acc. NoSF/SF |
+| Strategy | Retrieval rate NoSF/SF | Latency NoSF/SF | Token F1 | BERTScore F1 | Dataset acc. NoSF/SF | Oracle acc. NoSF/SF |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | `always_rag` | 100.00 / 61.76 | 6.21s / 13.94s | 7.88 | 61.10 | 50.00 / 61.18 | 69.41 / 77.65 |
 | `never_rag` | 0.00 / 0.00 | 6.68s / 6.64s | 4.57 | 58.21 | 50.00 / 50.00 | 30.59 / 30.59 |
