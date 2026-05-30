@@ -17,19 +17,18 @@ The project compares three retrieval policies:
 - `never_rag` (baseline): answer directly with the LLM.
 - `router_rag`: use a learned query router to decide whether retrieval is needed.
 
-The pipeline combines SQAC question answering data, conversational/chitchat data, hybrid retrieval, Mixtral generation, self-feedback, and several learned router variants.
 
 ## Repository Layout
 
 ```text
 .
-├── corpus/                    # Tracked source/evaluation corpora
+├── corpus/                    # Source/evaluation corpora
 │   ├── train.json
 │   ├── dev.json
 │   ├── test.json
-│   ├── oracle_train_sqac_64_per_label.jsonl
-│   └── oracle_train_sqac_500_per_label.jsonl
-├── outputs/                   # Tracked final reports and prediction files
+│   ├── oracle_train_sqac_64_per_label.jsonl # Oracle-labeled training corpora (128 samples)
+│   └── oracle_train_sqac_500_per_label.jsonl # Oracle-labeled training corpora (1000 samples)
+├── outputs/                   # Final evaluation reports and prediction files
 ├── scripts/                   # Data prep, indexing, routing, generation, eval
 ├── slurm/                     # Cluster job scripts for the full workflow
 ├── requirements.txt
@@ -42,7 +41,7 @@ The pipeline combines SQAC question answering data, conversational/chitchat data
 - `scripts/load_chatsubs.py` and `scripts/load_microsoft_chitchat.py`: prepare non-retrieval conversational examples.
 - `scripts/build_index.py`: builds BM25 and BGE-M3 dense retrieval indexes.
 - `scripts/retriever.py`: runs hybrid retrieval and reranking.
-- `scripts/router.py`: trains/evaluates router approaches: `frozen_lr`, `setfit`, and `finetune`.
+- `scripts/router.py`: trains/evaluates router approaches on dataset labels: `frozen_lr`, `setfit`, and `finetune`.
 - `scripts/train_oracle_setfit.py`: trains SetFit routers on oracle-labeled corpora in `corpus/`.
 - `scripts/generator.py`: handles prompt construction, generation, and self-feedback.
 - `scripts/main.py`: runs interactive, single-query, or batch prediction modes.
@@ -64,35 +63,12 @@ The generator uses `mistralai/Mixtral-8x7B-Instruct-v0.1`. If your Hugging Face 
 export HF_TOKEN=your_token_here
 ```
 
-Alternatively, the code can read `HF_TOKEN` from a local `config.py`; this file is intentionally ignored.
+Alternatively, the code can read `HF_TOKEN` from a local `config.py`.
 
-## Data and Generated Artifacts
-
-Tracked:
-
-- Raw SQAC JSON files in `corpus/`
-- Oracle-labeled training corpora in `corpus/`
-- Final prediction files and `outputs/evaluation_report.json`
-
-Ignored and regenerated locally:
-
-- `data/processed/`
-- `data/indexes/`
-- `models/`
-- `logs/`
-- Hugging Face/model caches
-
-Build the processed data and retrieval index:
-
-```bash
-python scripts/load_sqac.py
-python scripts/load_chatsubs.py
-python scripts/build_index.py
-```
 
 ## Running the System
 
-Single query:
+### Quick Test: Single Query
 
 ```bash
 python scripts/main.py \
@@ -103,58 +79,190 @@ python scripts/main.py \
   --query "¿Quién escribió Don Quijote?"
 ```
 
-Interactive mode:
+### Full Reproducible Workflow
+
+The following steps reproduce the complete system and experiments reported in the results table. Execute in order:
+
+#### 1. Data Preparation
 
 ```bash
-python scripts/main.py --mode interactive --strategy router_rag
+# Load SQAC questions and prepare train/dev/test splits
+python scripts/load_sqac.py
+
+# Load conversational examples (non-retrieval)
+python scripts/load_chatsubs.py
 ```
 
-Batch predictions:
+#### 2. Build Retrieval Index
 
 ```bash
+# Build BM25 and BGE-M3 dense retrieval indexes
+python scripts/build_index.py
+```
+
+#### 3. Train Router Models
+
+Train three router approaches on the full SQAC training set:
+
+```bash
+# Train frozen_lr router
+python scripts/router.py --train --approach frozen_lr
+
+# Train SetFit router
+python scripts/router.py --train --approach setfit
+
+# Train fine-tune router
+python scripts/router.py --train --approach finetune
+```
+
+#### 4. Run Batch Predictions (Baseline Strategies)
+
+```bash
+# Baseline: Always retrieve from SQAC
 python scripts/main.py --mode batch --strategy always_rag
+
+# Baseline: Never retrieve, LLM only
 python scripts/main.py --mode batch --strategy never_rag
-python scripts/main.py --mode batch --strategy router_rag --router_approach setfit --router_size 15036
 ```
 
-Evaluate tracked or newly generated predictions:
+#### 5. Run Batch Predictions (Router-Controlled RAG)
 
 ```bash
-python scripts/evaluate.py
-python scripts/evaluate.py --verbose
+# Router strategy: frozen_lr approach (size 15036 per class)
+python scripts/main.py \
+  --mode batch \
+  --strategy router_rag \
+  --router_approach frozen_lr \
+  --router_size 15036
+
+# Router strategy: SetFit approach (size 15036 per class)
+python scripts/main.py \
+  --mode batch \
+  --strategy router_rag \
+  --router_approach setfit \
+  --router_size 15036
+
+# Router strategy: Fine-tune approach (size 12500 per class)
+python scripts/main.py \
+  --mode batch \
+  --strategy router_rag \
+  --router_approach finetune \
+  --router_size 12500
 ```
 
-## Slurm Workflow
+#### 6. Oracle-Labeled Router Training (Optional)
 
-The `slurm/` directory contains the cluster workflow used for the experiments:
-
-```text
-01_load_sqac.sh
-02_load_chatsubs.sh
-03_build_index.sh
-04_train_router.sh
-05_batch_always_rag.sh
-06_batch_never_rag.sh
-07_batch_router_rag.sh
-08_evaluate.sh
-09_build_oracle_train_subset.sh
-10_train_oracle_setfit.sh
-11_batch_oracle_setfit.sh
-12_build_oracle_train_500.sh
-13_train_oracle_setfit_500.sh
-14_batch_oracle_setfit_500.sh
-```
-
-Submit jobs with `sbatch`, for example:
+Build oracle-labeled training sets using uncertainty sampling:
 
 ```bash
-sbatch slurm/03_build_index.sh
-sbatch slurm/04_train_router.sh
-sbatch slurm/07_batch_router_rag.sh
-sbatch slurm/08_evaluate.sh
+# Build oracle training set: 64 examples per label
+python scripts/build_oracle_train_subset.py \
+  --target_per_label 64 \
+  --candidate_batch 8 \
+  --seed 42
+
+# Build oracle training set: 500 examples per label
+python scripts/build_oracle_train_subset.py \
+  --target_per_label 500 \
+  --candidate_batch 8 \
+  --seed 42 \
+  --output corpus/oracle_train_sqac_500_per_label.jsonl
 ```
 
-The Slurm scripts assume the project lives at `/home/igutierrez134/apps2` and use the environment at `/home/igutierrez134/envs/apps2_3.11`.
+Train SetFit routers on oracle-labeled sets:
+
+```bash
+# Train SetFit on 64-per-label oracle set
+python scripts/train_oracle_setfit.py \
+  --data corpus/oracle_train_sqac_64_per_label.jsonl \
+  --save_dir models/router_oracle/setfit/64_per_label \
+  --num_epochs 4 \
+  --num_iterations 24 \
+  --batch_size 16
+
+# Train SetFit on 500-per-label oracle set
+python scripts/train_oracle_setfit.py \
+  --data corpus/oracle_train_sqac_500_per_label.jsonl \
+  --save_dir models/router_oracle/setfit/500_per_label \
+  --num_epochs 4 \
+  --num_iterations 24 \
+  --batch_size 16
+```
+
+Run predictions with oracle SetFit routers:
+
+```bash
+# Predictions with oracle SetFit (64 per label)
+python scripts/main.py \
+  --mode batch \
+  --strategy router_rag \
+  --router_approach setfit \
+  --router_model_dir models/router_oracle/setfit/64_per_label
+
+# Predictions with oracle SetFit (500 per label)
+python scripts/main.py \
+  --mode batch \
+  --strategy router_rag \
+  --router_approach setfit \
+  --router_model_dir models/router_oracle/setfit/500_per_label
+```
+
+#### 7. Latency Measurements (Without Self-Feedback)
+
+```bash
+# Measure latency with no feedback (always_rag baseline)
+python scripts/main.py \
+  --mode batch \
+  --strategy always_rag \
+  --no_feedback \
+  --run_name latency_nofb_always_rag
+
+# Measure latency with no feedback (never_rag baseline)
+python scripts/main.py \
+  --mode batch \
+  --strategy never_rag \
+  --no_feedback \
+  --run_name latency_nofb_never_rag
+
+# Measure latency with no feedback (all router variants)
+python scripts/main.py \
+  --mode batch \
+  --strategy router_rag \
+  --router_approach frozen_lr \
+  --router_size 15036 \
+  --no_feedback \
+  --run_name latency_nofb_router_frozen_lr
+
+python scripts/main.py \
+  --mode batch \
+  --strategy router_rag \
+  --router_approach setfit \
+  --router_size 15036 \
+  --no_feedback \
+  --run_name latency_nofb_router_setfit
+
+python scripts/main.py \
+  --mode batch \
+  --strategy router_rag \
+  --router_approach finetune \
+  --router_size 12500 \
+  --no_feedback \
+  --run_name latency_nofb_router_finetune
+```
+
+#### 8. Final Evaluation
+
+Evaluate all strategies and generate the report:
+
+```bash
+# Evaluate all strategies (tracked predictions + newly generated ones)
+python scripts/evaluate.py --strategy all
+
+# Verbose evaluation report
+python scripts/evaluate.py --strategy all --verbose
+```
+
+Results are saved to `outputs/evaluation_report.json`.
 
 ## Results Snapshot
 
@@ -187,5 +295,5 @@ NoSF latency comes from the no-feedback rerun summarized in `outputs/latency_pre
 [GitHub Profile](https://github.com/iker-gutierrez) | [LinkedIn](https://www.linkedin.com/in/iker-gutierrez-fandino)
 
 **Paula Guerrero Castelló**<br> 
-*Computational linguist & translator ES/FR/EN/CA/ZH*<br>
+*Computational linguist & translator*<br>
 [GitHub Profile](https://github.com/guerreropaula) | [LinkedIn](https://www.linkedin.com/in/paula-guerrero-castelló)
