@@ -9,7 +9,7 @@ University of the Basque Country (EHU) · Natural Language Applications II · 20
 ---
 
 
-This repository implements a Spanish conversational system with a Retrieval-Augmented Generation (RAG) router that decides when a conversational assistant should retrieve external context and when it should answer directly.
+This repository provides a Spanish conversational system with a Retrieval-Augmented Generation (RAG) router that decides when a conversational assistant should retrieve external context and when it should answer directly.
 
 The project compares three retrieval policies:
 
