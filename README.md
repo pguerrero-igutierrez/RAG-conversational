@@ -8,7 +8,6 @@ University of the Basque Country (EHU) · Natural Language Applications II · 20
 
 ---
 
-
 This repository provides a Spanish conversational system with a Retrieval-Augmented Generation (RAG) router that decides when a conversational assistant should retrieve external context and when it should answer directly.
 
 The project compares three retrieval policies:
@@ -90,7 +89,8 @@ python scripts/main.py \
 ---
 ## Full workflow
  
-Steps 1–8 reproduce all reported results. Steps 6–8 are optional extras.
+Steps 1–8 reproduce all reported results. Step 6 can be skipped if you use
+the tracked oracle-router outputs, and step 7 can be skipped if you integrate the no-feedback latency into the main evaluation. We had to do these two steps because we included these implementations late into the workflow.
  
 ### 1. Data preparation
  
@@ -171,11 +171,11 @@ Build oracle labels by running both always/never RAG on SQAC training examples a
 ```bash
 # 64 examples per label (128 total)
 python scripts/build_oracle_train_subset.py \
-  --target_per_label 64 --candidate_batch 8 --seed 42
+  --target_per_label 64 --candidate_batch 8 --seed 42 --top_k 3
  
 # 500 examples per label (1,000 total)
 python scripts/build_oracle_train_subset.py \
-  --target_per_label 500 --candidate_batch 8 --seed 42 \
+  --target_per_label 500 --candidate_batch 8 --seed 42 --top_k 3 \
   --output corpus/oracle_train_sqac_500_per_label.jsonl
 ```
  
