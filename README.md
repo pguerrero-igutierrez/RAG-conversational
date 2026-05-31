@@ -109,12 +109,12 @@ This produces:
  
 | File | Samples | Label |
 |---|---|---|
-| `data/processed/router_train_sqac.jsonl` | 15,036 | 1 |
-| `data/processed/router_train_chitchat.jsonl` | 15,036 | 0 |
-| `data/processed/router_val_sqac.jsonl` | 1,779 | 1 |
-| `data/processed/router_val_chitchat.jsonl` | 1,664 | 0 |
-| `data/processed/test_sqac.jsonl` | 85 | 1 |
-| `data/processed/test_chitchat.jsonl` | 85 | 0 |
+| `data/processed/router_train_sqac.jsonl` | 15,036 | retrieve |
+| `data/processed/router_train_chitchat.jsonl` | 15,036 | skip |
+| `data/processed/router_val_sqac.jsonl` | 1,779 | retrieve |
+| `data/processed/router_val_chitchat.jsonl` | 1,664 | skip |
+| `data/processed/test_sqac.jsonl` | 85 | retrieve |
+| `data/processed/test_chitchat.jsonl` | 85 | skip |
 | `data/indexes/sqac_corpus.jsonl` | 5,601 passages | — |
  
 ### 2. Build retrieval index
